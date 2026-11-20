@@ -1,5 +1,4 @@
 <script setup lang="ts">
-const route = useRoute()
 const isDesktop = ref(true)
 
 let mql: MediaQueryList | null = null
@@ -17,10 +16,7 @@ onUnmounted(() => {
   mql?.removeEventListener('change', onMqlChange)
 })
 
-const layoutName = computed(() => {
-  if (route.path === '/') return 'login-layout'
-  return isDesktop.value ? 'default' : 'mobile'
-})
+const layoutName = computed(() => (isDesktop.value ? 'default' : 'mobile'))
 </script>
 
 <template>

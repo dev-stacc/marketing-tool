@@ -7,10 +7,6 @@ RUN HUSKY=0 npm install
 COPY . .
 RUN npm run build
 
-FROM builder AS migrator
-ENV NODE_ENV=production
-CMD ["npx", "drizzle-kit", "migrate", "--config=drizzle.config.ts"]
-
 FROM node:24-alpine AS runner
 WORKDIR /app
 

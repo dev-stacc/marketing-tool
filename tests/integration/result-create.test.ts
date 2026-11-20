@@ -3,21 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ORPCError, call } from '@orpc/server'
 import { createDirectDb } from '../helpers/db'
 
-import { auth } from '~~/server/utils/auth'
 import procedure from '~~/server/orpc/router/result/create'
 
-vi.mock('~~/server/utils/auth', () => ({
-  auth: { api: { getSession: vi.fn() } },
-}))
 vi.mock('~~/server/database/db', () => ({
   getDb: vi.fn(() => ({})),
-  getSecondDb: vi.fn(() => ({})),
 }))
 
 const CAMPAIGN_ID = '00000000-0000-4000-8000-000000000001'
-
-const mockSession = { id: 'session-1', userId: 'user-1', expiresAt: new Date(), token: 'tok' }
-const mockUser = { id: 'user-1', email: 'test@example.com', name: 'Test', emailVerified: true, createdAt: new Date(), updatedAt: new Date() }
 
 const ctx = { headers: new Headers() }
 
@@ -31,7 +23,6 @@ const PERIODS = {
 describe('result.create', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(auth.api.getSession).mockResolvedValue({ session: mockSession, user: mockUser } as any)
   })
 
   it('throws BAD_REQUEST when campaignId does not exist', async () => {

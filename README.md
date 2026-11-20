@@ -1,8 +1,10 @@
-# Budget Internal Tool
+# Marketing Tool
 
-An internal marketing budget management and analytics dashboard. Input spend and results per channel per budget period, view ROI, CPA, and ARPU metrics, and chat with an AI analyst about your budget data.
+A marketing budget management and analytics dashboard. Input spend and results per channel per budget period, view ROI, CPA, and ARPU metrics, and chat with an AI analyst about your budget data.
 
 **Demo:** https://marketing-tool-one.vercel.app
+
+This repository is the demo build: it runs on an in-process database seeded with generated data, with no sign-in, no external services and no connection string to configure. Clone it, install, run — the dashboard comes up populated.
 
 ---
 
@@ -15,9 +17,8 @@ An internal marketing budget management and analytics dashboard. Input spend and
 | API | oRPC (type-safe RPC over HTTP) |
 | Data fetching | TanStack Query (Vue Query v5) |
 | Database ORM | Drizzle ORM |
-| Database | Neon (serverless PostgreSQL) |
-| Auth | Better Auth |
-| AI | Anthropic Claude (Haiku) |
+| Database | PGlite (PostgreSQL compiled to WASM, in-process) |
+| AI | Anthropic Claude (Haiku), optional |
 | Charts | ApexCharts (vue3-apexcharts) |
 | Date picker | v-calendar |
 | Validation | Zod |
@@ -32,7 +33,7 @@ An internal marketing budget management and analytics dashboard. Input spend and
 
 ```bash
 nix develop
-pnpm run dev   # http://localhost:3000
+npm run dev    # http://localhost:3000
 ```
 
 The nix shell installs all system dependencies and sources `.env` automatically.
@@ -49,25 +50,24 @@ npm run dev    # http://localhost:3000
 ```
 NODE_ENV=development
 
-DATABASE_URL=
-
-BETTER_AUTH_API_KEY=
-BETTER_AUTH_URL=http://localhost:3000
-
+# Optional. Without it the AI chat answers from the data itself
+# instead of calling a model.
 ANTHROPIC_API_KEY=
-
-# Only needed when running db:seed-admin
-SEED_ADMIN_EMAIL=
-SEED_ADMIN_PASSWORD=
 ```
 
-### Database commands
+There is no `DATABASE_URL`: the database lives in the server process.
+
+### The database
+
+`server/database/db.ts` boots a PGlite instance, applies the DDL in
+`server/database/ddl.ts`, and runs `server/database/seed.ts`. Every query goes
+through a gate that waits for that to finish, so the first request after a cold
+start blocks for a couple of seconds and everything after it is in-memory fast.
+The data is regenerated on every boot and nothing persists across restarts.
 
 ```bash
 npm run db:generate   # generate migration files from schema changes
-npm run db:migrate    # apply migrations to the database
-npm run db:push       # push schema directly (dev only)
-npm run db:studio     # open Drizzle Studio GUI
+npm run db:ddl        # rebuild ddl.ts from the migrations (run after db:generate)
 ```
 
 ---
@@ -75,7 +75,7 @@ npm run db:studio     # open Drizzle Studio GUI
 ## Project Structure
 
 ```
-budget-internal-tool/
+marketing-tool/
 ├── app/
 │   ├── components/es/         # all UI components (namespaced under "es")
 │   │   ├── dashboard/         # dashboard charts and stat cards
@@ -91,31 +91,32 @@ budget-internal-tool/
 │   │   ├── nav-bar.vue
 │   │   └── side-bar.vue
 │   ├── composables/           # auto-imported Vue composables
-│   ├── layouts/               # default and login-layout
-│   ├── middleware/            # auth route guard
+│   ├── layouts/               # default and mobile
 │   ├── pages/                 # file-based routes
 │   ├── plugins/               # Nuxt plugins (oRPC, TanStack Query, ApexCharts, vCalendar)
 │   ├── queries/               # TanStack Query hooks, one file per operation
-│   └── utils/                 # shared utilities (auth client, formatCurrency)
+│   └── utils/                 # shared utilities (formatCurrency)
 ├── server/
 │   ├── api/
-│   │   ├── auth/              # Better Auth handler
-│   │   └── rpc/               # oRPC HTTP handler
+│   │   ├── rpc/               # oRPC HTTP handler
+│   │   └── health.get.ts      # liveness probe
 │   ├── database/
 │   │   ├── schemas/           # Drizzle table definitions
 │   │   ├── migrations/        # auto-generated SQL migrations
-│   │   └── db.ts              # Neon database connection
+│   │   ├── ddl.ts             # migrations flattened into one script
+│   │   ├── seed.ts            # generates the demo dataset
+│   │   └── db.ts              # PGlite instance and readiness gate
 │   ├── orpc/
 │   │   ├── router/            # all API procedures, grouped by resource
-│   │   ├── authorized.ts      # base procedure with auth middleware
-│   │   ├── context.ts         # request context (db, user session)
+│   │   ├── authorized.ts      # base procedure (no auth in the demo build)
+│   │   ├── context.ts         # request context (db)
 │   │   └── middlewares/       # oRPC middleware
 │   └── utils/
-│       └── auth.ts            # Better Auth server instance
+│       └── webRequestFromEvent.ts  # H3 event to web Request adapter
 ├── shared/
 │   └── utils/tryCatch.ts      # typed async error handling helper
 ├── tests/
-│   ├── integration/           # integration tests against a real database
+│   ├── integration/           # integration tests against a PGlite database
 │   ├── unit/                  # unit tests
 │   └── helpers/               # test utilities
 ├── nuxt.config.ts
@@ -129,12 +130,12 @@ budget-internal-tool/
 
 | Route | Description |
 |---|---|
-| `/` | Login page |
+| `/` | Redirects to `/dashboard` |
 | `/dashboard` | Analytics dashboard (ARPU, CPA, ROI, insights) |
 | `/budget-input` | Data entry for spend, results, budgets, and campaigns |
 | `/demo` | Demo/sandbox page |
 
-All routes except `/` are protected by the `auth` middleware (`app/middleware/auth.ts`).
+Every route is open — the demo build has no sign-in and no route guards.
 
 ---
 
@@ -231,7 +232,7 @@ Unique constraint on `(budget_prediction_id, channel_id)`.
 
 ## API Layer (oRPC)
 
-All API calls go through `/api/rpc` using oRPC. Every procedure requires authentication via the `authorized` base procedure in `server/orpc/authorized.ts`.
+All API calls go through `/api/rpc` using oRPC. Procedures build on the `authorized` base procedure in `server/orpc/authorized.ts`, which in the demo build is the bare base procedure with no auth middleware attached — the name is the seam where an auth check would go.
 
 ### Router structure
 
@@ -270,6 +271,8 @@ The chat interface (`EsChatModal`) lets you ask questions about your budget data
 
 **Server flow** (`server/orpc/router/llm/chat.ts`): receives the message, fetches budget data from the DB if a budget was selected, assembles content blocks for the Anthropic API, and returns plain text. Model: `claude-haiku-4-5-20251001`.
 
+**Without an API key**, `offlineAnalysis()` answers instead: it computes the same numbers the model would be handed — spend against allocation, revenue, users acquired, per-channel return, and where the budget is underperforming — and writes them up directly. The reply says it is the demo build, so the fallback is never mistaken for a model answer. Nothing is sent anywhere and no key is required to run the app.
+
 **Client flow** (`app/queries/llm/useChat.ts`): TanStack `useMutation` wrapping the oRPC call, following the same pattern as all other mutation hooks.
 
 ---
@@ -301,7 +304,7 @@ npm run test          # run once
 npm run test:watch    # watch mode
 ```
 
-Tests are in `tests/integration/` (run against a real database) and `tests/unit/`. Helpers are in `tests/helpers/`.
+Tests are in `tests/integration/` and `tests/unit/`; helpers are in `tests/helpers/`. The integration tests call the oRPC handlers directly against the chainable fake db in `tests/helpers/db.ts`, which replays a queued sequence of query results — so the suite needs no database and no setup beyond `npm install`.
 
 ---
 
@@ -311,4 +314,4 @@ Tests are in `tests/integration/` (run against a real database) and `tests/unit/
 - Component files ending in `.client.vue` are client-only (no SSR).
 - All components are namespaced under the `Es` prefix (Nuxt auto-import convention).
 - `shared/utils/tryCatch.ts` wraps promises in `{ data, error }` and is used in all server handlers instead of try/catch blocks.
-# marketing-tool
+

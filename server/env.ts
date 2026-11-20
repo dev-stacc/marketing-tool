@@ -4,10 +4,9 @@ import { z } from 'zod'
 export const env = createEnv({
   server: {
     NODE_ENV: z.string().min(1),
-    BETTER_AUTH_API_KEY: z.string().min(1),
-    BETTER_AUTH_URL: z.string().min(1),
-    DATABASE_URL: z.string().min(1),
-    ANTHROPIC_API_KEY: z.string().min(1),
+    // Optional on purpose: the demo has no secrets to configure. Without a key
+    // the AI analyst answers from a canned response instead of calling the API.
+    ANTHROPIC_API_KEY: z.string().optional(),
   },
   runtimeEnv: process.env,
 })

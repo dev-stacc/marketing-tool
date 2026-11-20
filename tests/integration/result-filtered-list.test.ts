@@ -3,19 +3,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { call } from '@orpc/server'
 import { createDirectDb } from '../helpers/db'
 
-import { auth } from '~~/server/utils/auth'
 import procedure from '~~/server/orpc/router/result/filteredList'
 
-vi.mock('~~/server/utils/auth', () => ({
-  auth: { api: { getSession: vi.fn() } },
-}))
 vi.mock('~~/server/database/db', () => ({
   getDb: vi.fn(() => ({})),
-  getSecondDb: vi.fn(() => ({})),
 }))
-
-const mockSession = { id: 'session-1', userId: 'user-1', expiresAt: new Date(), token: 'tok' }
-const mockUser = { id: 'user-1', email: 'test@example.com', name: 'Test', emailVerified: true, createdAt: new Date(), updatedAt: new Date() }
 
 const ctx = { headers: new Headers() }
 
@@ -25,7 +17,6 @@ const row2 = { id: 'r-2', revenueCents: 2000, usersAcquired: 20, date: '2024-01-
 describe('result.filteredList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(auth.api.getSession).mockResolvedValue({ session: mockSession, user: mockUser } as any)
   })
 
   it('returns results and pagination without search', async () => {
