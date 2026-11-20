@@ -1,5 +1,5 @@
 {
-  description = "Budget Internal Tool - Nuxt 4 with Neon DB";
+  description = "Marketing Tool - Nuxt 4 dashboard on an in-process database";
   
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -12,11 +12,10 @@
         pkgs = nixpkgs.legacyPackages.${system};
       in {
         devShells.default = pkgs.mkShell {
-          name = "budget-internal-tool-dev";
+          name = "marketing-tool-dev";
           
           packages = with pkgs; [
             nodejs_22
-            pnpm
             typescript
             typescript-language-server
             vscode-langservers-extracted
@@ -30,9 +29,9 @@
           ];
           
           shellHook = ''
-            echo "Budget Internal Tool Development Environment"
+            echo "Marketing Tool Development Environment"
             echo "Node: $(node --version)"
-            echo "pnpm: $(pnpm --version)"
+            echo "npm: $(npm --version)"
             echo ""
             
             # Load .env if it exists
@@ -47,11 +46,11 @@
             # Install dependencies if needed
             if [ ! -d "node_modules" ]; then
               echo "Installing dependencies..."
-              pnpm install
+              npm install
             fi
             
             echo ""
-            echo "Ready! Run: pnpm run dev"
+            echo "Ready! Run: npm run dev"
           '';
         };
       });

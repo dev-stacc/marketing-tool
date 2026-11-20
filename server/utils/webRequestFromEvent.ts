@@ -1,6 +1,8 @@
 import type { H3Event } from 'h3'
 
-export async function webRequestFromEvent(event: H3Event, baseURL: string): Promise<Request> {
+// The base URL only exists so a relative request path can be parsed into a URL;
+// nothing downstream reads the origin, so a placeholder is enough.
+export async function webRequestFromEvent(event: H3Event, baseURL = 'http://localhost'): Promise<Request> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const e = event as any
   const method: string = (e.node?.req?.method ?? e.req?.method ?? 'GET').toUpperCase()
@@ -21,7 +23,10 @@ export async function webRequestFromEvent(event: H3Event, baseURL: string): Prom
   const init: RequestInit = { method, headers }
   if (method !== 'GET' && method !== 'HEAD') {
     const body = await readBodyBuffer(event)
-    if (body && body.length > 0) init.body = body
+    // A Node Buffer is not in the BodyInit union TypeScript sees here, and its
+    // backing store is typed as ArrayBufferLike, so the bytes go over as a plain
+    // view of the same memory.
+    if (body && body.length > 0) init.body = new Uint8Array(body.buffer as ArrayBuffer, body.byteOffset, body.byteLength)
   }
 
   return new Request(url, init)

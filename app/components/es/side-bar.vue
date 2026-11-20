@@ -1,10 +1,4 @@
 <script setup lang="ts">
-const { logout } = useAuth()
-
-const signOut = async () => {
-  await logout()
-}
-
 const isChatOpen = ref(false)
 </script>
 
@@ -51,16 +45,6 @@ const isChatOpen = ref(false)
           />
           <span class="is-drawer-close:hidden">Chatbot</span>
         </a>
-      </li>
-      <li>
-        <NuxtLink
-          to="/"
-          class="is-drawer-close:tooltip is-drawer-close:tooltip-right cursor-auto hover:cursor-pointer"
-          @click="signOut"
-        >
-          <Icon name="lucide:log-out" />
-          <span class="is-drawer-close:hidden">Sign Out</span>
-        </NuxtLink>
       </li>
     </ul>
   </div>

@@ -1,10 +1,9 @@
-import { getDb } from './db'
+import type { Database } from './db'
 import { budget, channel, channelBudget, spend, result, campaign, customer, quizAnswers } from './schemas'
-import { auth } from '~~/server/utils/auth'
 import { tryCatch } from '~~/shared/utils/tryCatch'
 
-export async function seed() {
-  const seeding = await tryCatch(seedData())
+export async function seed(db: Database) {
+  const seeding = await tryCatch(seedData(db))
   if (seeding.error) {
     console.error('Seeding failed:', seeding.error)
   }
@@ -21,9 +20,7 @@ function daysInRange(startDate: string, endDate: string): string[] {
   return dates
 }
 
-async function seedData() {
-  const db = getDb()
-
+async function seedData(db: Database) {
   console.log('🌱 Seeding database...')
 
   // Clear existing data (reverse dependency order)
@@ -305,9 +302,7 @@ async function seedData() {
 // Synthetic platform customers with referral sources that align with the
 // marketing channels. Growth mirrors the spend/result data (Oct 2025 → today).
 
-export async function seedCustomers() {
-  const db = getDb()
-
+export async function seedCustomers(db: Database) {
   console.log('🌱 Seeding customers...')
 
   await db.delete(quizAnswers)
@@ -376,26 +371,4 @@ export async function seedCustomers() {
   console.log(`✅ Inserted ${quizRecords.length} quiz answers`)
 
   console.log('🎉 Customer seeding complete!')
-}
-
-// ─── Admin user ───────────────────────────────────────────────────────────────
-
-export async function seedAdmin() {
-  const email = process.env.SEED_ADMIN_EMAIL
-  const password = process.env.SEED_ADMIN_PASSWORD
-
-  if (!email || !password) {
-    throw new Error('SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD must be set')
-  }
-
-  const { error } = await tryCatch(
-    auth.api.signUpEmail({ body: { email, password, name: 'Admin' } }),
-  )
-
-  if (error) {
-    console.log(error.message || 'Admin already exists')
-  }
-  else {
-    console.log(`✅ Admin user created: ${email}`)
-  }
 }
